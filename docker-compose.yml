@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Frontend - React/Next.js Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_TABLEAU_SERVER_URL=${TABLEAU_SERVER_URL}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - treasuryiq-network
+
+  # Backend - Python FastAPI Services
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://treasuryiq:password@postgres:5432/treasuryiq
+      - REDIS_URL=redis://redis:6379
+      - TABLEAU_SERVER_URL=${TABLEAU_SERVER_URL}
+      - TABLEAU_USERNAME=${TABLEAU_USERNAME}
+      - TABLEAU_PASSWORD=${TABLEAU_PASSWORD}
+      - AGENTFORCE_API_KEY=${AGENTFORCE_API_KEY}
+      - FEDERAL_RESERVE_API_KEY=${FEDERAL_RESERVE_API_KEY}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - treasuryiq-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=treasuryiq
+      - POSTGRES_USER=treasuryiq
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - treasuryiq-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - treasuryiq-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - treasuryiq-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  treasuryiq-network:
+    driver: bridge

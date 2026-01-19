@@ -91,7 +91,7 @@ export default function AdvancedCharts({
 
   const generateCorrelationData = () => {
     const assets = ['USD Cash', 'EUR Cash', 'Treasury 2Y', 'Corp Bonds', 'Money Market']
-    const data = []
+    const data: any[] = []
     
     for (let i = 0; i < assets.length; i++) {
       for (let j = 0; j < assets.length; j++) {
